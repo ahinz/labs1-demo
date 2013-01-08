@@ -76,6 +76,8 @@ class Resource {
     @QueryParam("style")
     style: String
   ) = {
+    val features = Context.features
+
     val rasterExtentOp = string.ParseRasterExtent(bbox, cols, rows)
 
     val sizeOp = logic.Do(string.ParseInt(kSize))(f => f + (f % 2) - 1)
@@ -86,9 +88,6 @@ class Resource {
                      string.ParseDouble(style)
 
     val kernelOp = focal.CreateGaussianRaster(sizeOp, cellSize, spreadOp, 100.0)
-
-    val features = Context.features
-
     val kernelDensityOp = focal.KernelDensity(features, (x:Int) => x, 
                                               kernelOp, rasterExtentOp)
 
@@ -97,7 +96,6 @@ class Resource {
     val hist = statistics.op.stat.GetHistogram(kd)
     val colors = Context.ramp.colors
     val nColors = colors.length
-    data.CreateLinearBreaks(0,200, RedToAmberToGreen, 20)
     val cb = geotrellis.data.ColorBreaks((1 to nColors).map { c => c * 200 / nColors }.toArray, colors)
     val pngOp = io.RenderPng(kd, cb, hist, 0)
     val png = Context.server.run(pngOp)
