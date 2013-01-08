@@ -65,27 +65,21 @@ class Resource {
     @QueryParam("height")
     rows: String,
 
-    @QueryParam("ksize")
+    @QueryParam("kSize")
     @DefaultValue("301")
     kSize: String,
 
-    @QueryParam("spread")
-    @DefaultValue("50")
-    spread: String,
-
     @QueryParam("style")
-    style: String
+    @DefaultValue("50")
+    spread: String
   ) = {
     val features = Context.features
 
     val rasterExtentOp = string.ParseRasterExtent(bbox, cols, rows)
 
-    val sizeOp = logic.Do(string.ParseInt(kSize))(f => f + (f % 2) - 1)
+    val sizeOp = string.ParseInt(kSize)
     val cellSize = 10.0
-    val spreadOp = if (style == null)
-                     string.ParseDouble(spread)
-                   else
-                     string.ParseDouble(style)
+    val spreadOp = string.ParseDouble(spread)
 
     val kernelOp = focal.CreateGaussianRaster(sizeOp, cellSize, spreadOp, 100.0)
     val kernelDensityOp = focal.KernelDensity(features, (x:Int) => x, 
