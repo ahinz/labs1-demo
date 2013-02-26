@@ -1,4 +1,6 @@
 window.onload = function() {
+    var pfx = location.pathname.match(/(.*)\/(.*)$/)[1]
+
     var map = L.map('map').setView([39.8, -113.4], 5);
     L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}.jpg', {
         attribution: 'Map data &copy; ESRI',
@@ -14,7 +16,7 @@ window.onload = function() {
 
         var spread = document.getElementById('spread').value;
 
-        d = new L.TileLayer.WMS("/density", {
+        d = new L.TileLayer.WMS(pfx + "/density", {
             layers: 'default',
             style: spread,
             format: 'image/png',
