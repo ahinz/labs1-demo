@@ -28,7 +28,7 @@ object Context {
 
     var gtFeatures:Seq[SimpleFeature] = Seq.empty
     while(ftItr.hasNext()) gtFeatures = gtFeatures :+ ftItr.next()
-    
+
     // Convert to GeoTrellis features
     gtFeatures map { ft =>
       val geom = ft.getAttribute(0).asInstanceOf[JtsPoint]
@@ -46,10 +46,8 @@ object Context {
 
   val baseRamp = geotrellis.data.ColorRamps.RedToAmberToGreen.colors
   val ramp = new geotrellis.data.ColorRamp {
-      val colors = baseRamp.zipWithIndex.map { 
-          case (color, idx) => (color & 0xFFFFFF00) | (0xFF * idx / (baseRamp.length*2))
-        }
-    }
+    val colors = 0x00000000 +: baseRamp.map { c => (c & 0xFFFFFF00) | (0xFF * 50/100) }
+  }
 }
 
 @Path("/density")
@@ -75,14 +73,29 @@ class Resource {
   ) = {
     val features = Context.features
 
-    val rasterExtentOp = string.ParseRasterExtent(bbox, cols, rows)
+    val rasterExtentOp:Op[RasterExtent] =
+      string.ParseRasterExtent(bbox, cols, rows)
 
-    val sizeOp = string.ParseInt(kSize)
-    val cellSize = 10.0
-    val spreadOp = string.ParseDouble(spread)
+    val sizeInKmOp:Op[Int] = string.ParseInt(kSize)
+
+    val spreadInKmOp:Op[Double] = string.ParseDouble(spread)
+
+    // spread and size are defined in real units (km) and
+    // need to be converted to cell sizes
+    val cellSize:Op[Double] = logic.Do(rasterExtentOp)(_.cellwidth)
+    val spreadOp:Op[Double] =
+      logic.Do(cellSize, spreadInKmOp) { (cellSize, spreadKm) =>
+        spreadKm * 1000.0 / cellSize
+      }
+
+    val sizeOp:Op[Int] =
+      logic.Do(cellSize, sizeInKmOp) { (cellSize, sizeKm) =>
+        val size = (sizeKm * 1000.0 / cellSize).toInt
+        size - (size % 2) + 1 // Size must be odd
+      }
 
     val kernelOp = focal.CreateGaussianRaster(sizeOp, cellSize, spreadOp, 100.0)
-    val kernelDensityOp = focal.KernelDensity(features, (x:Int) => x, 
+    val kernelDensityOp = focal.KernelDensity(features, (x:Int) => x,
                                               kernelOp, rasterExtentOp)
 
     //val pngOp = io.SimpleRenderPng(kernelDensityOp, Context.ramp)
@@ -90,11 +103,10 @@ class Resource {
     val hist = statistics.op.stat.GetHistogram(kd)
     val colors = Context.ramp.colors
     val nColors = colors.length
-    val cb = geotrellis.data.ColorBreaks((1 to nColors).map { c => c * 200 / nColors }.toArray, colors)
+    val cb = geotrellis.data.ColorBreaks((1 to nColors).map { c => c * 300 / nColors }.toArray, colors)
     val pngOp = io.RenderPng(kd, cb, hist, 0)
     val png = Context.server.run(pngOp)
 
     Response.ok(png).`type`("image/png").build()
   }
 }
-
