@@ -98,7 +98,6 @@ class Resource {
     val kernelDensityOp = focal.KernelDensity(features, (x:Int) => x,
                                               kernelOp, rasterExtentOp)
 
-    //val pngOp = io.SimpleRenderPng(kernelDensityOp, Context.ramp)
     val kd = Context.server.run(kernelDensityOp)
     val hist = statistics.op.stat.GetHistogram(kd)
     val colors = Context.ramp.colors
